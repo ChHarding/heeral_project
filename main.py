@@ -3,6 +3,7 @@
 # Heeral Chumber - HCI 584
 
 import os
+import requests
 FIGMA_TOKEN = os.environ.get("FIGMA_TOKEN", "")
 
 # ── 1. CONFIG ──────────────────────────────────────────────────
@@ -98,33 +99,50 @@ def print_report(text_nodes, bg_color=(255, 255, 255)):
 
     passed = 0
     failed = 0
+    seen = set()  # track duplicates
+
+    # save results to a file too
+    report_lines = []
 
     for node in text_nodes:
         fg = node["fg_color"]
-        text = node["text"] if node["text"].strip() else "(empty text)"
+        text = node["text"].strip() if node["text"].strip() else "(empty text)"
 
         if fg is None:
-            print(f"\n  [{text[:30]}]")
-            print(f"   -> No solid fill color found, skipping.")
             continue
 
+        # skip duplicates
+        key = (text[:40], fg)
+        if key in seen:
+            continue
+        seen.add(key)
+
         ratio = contrast_ratio(fg, bg_color)
-        status = "PASS ✅" if ratio >= 4.5 else "FAIL ❌"
+        status = "PASS" if ratio >= 4.5 else "FAIL"
 
         if ratio >= 4.5:
             passed += 1
         else:
             failed += 1
 
-        print(f"\n  Text   : {text}")
-        print(f"  FG RGB : {fg}")
-        print(f"  BG RGB : {bg_color}")
-        print(f"  Ratio  : {ratio:.2f}  (need >= 4.5 for WCAG AA)")
-        print(f"  Result : {status}")
+        line = f"{status} | ratio {ratio:.2f} | {text[:40]} | FG {fg}"
+        print(line)
+        report_lines.append(line)
 
+    # print summary
     print("\n" + "=" * 60)
     print(f"  SUMMARY: {passed} passed, {failed} failed")
     print("=" * 60 + "\n")
+
+    # save to file
+    with open("report.txt", "w") as f:
+        f.write("CONTRASTCHECK REPORT\n")
+        f.write("=" * 60 + "\n")
+        for line in report_lines:
+            f.write(line + "\n")
+        f.write("=" * 60 + "\n")
+        f.write(f"SUMMARY: {passed} passed, {failed} failed\n")
+    print("Report saved to report.txt")
 
 # ── 6. MAIN ────────────────────────────────────────────────────
 def main():
