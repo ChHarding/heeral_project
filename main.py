@@ -4,11 +4,10 @@
 
 import os
 import requests
-FIGMA_TOKEN = os.environ.get("FIGMA_TOKEN", "")
 
 # ── 1. CONFIG ──────────────────────────────────────────────────
-FIGMA_TOKEN = "figd_xYyTPBCXSX6XJpqWJHpUM3blKTemwDkV38yZyhWh"   # replace with your token
-FILE_KEY    = "Rznp5ERB6Jr2p4Xneg8r7g" # your Figma file key
+FIGMA_TOKEN = os.environ.get("FIGMA_TOKEN", "")
+FILE_KEY = os.environ.get("FIGMA_FILE_KEY", "Rznp5ERB6Jr2p4Xneg8r7g")
 
 # ── 2. FETCH FIGMA FILE ────────────────────────────────────────
 def fetch_figma_file(file_key, token):
@@ -24,8 +23,10 @@ def fetch_figma_file(file_key, token):
     return response.json()
 
 # ── 3. EXTRACT COLORS ──────────────────────────────────────────
-def extract_text_nodes(node, results=[], depth=0):
+def extract_text_nodes(node, results=None, depth=0):
     """Recursively walk the Figma node tree and find text nodes."""
+    if results is None:
+        results = []
     if node.get("type") == "TEXT":
         text_content = node.get("characters", "")
         fills = node.get("fills", [])
@@ -49,8 +50,10 @@ def extract_text_nodes(node, results=[], depth=0):
 
     return results
 
-def extract_bg_colors(node, bg_map={}):
+def extract_bg_colors(node, bg_map=None):
     """Walk tree and record background fill for each FRAME/RECTANGLE."""
+    if bg_map is None:
+        bg_map = {}
     if node.get("type") in ("FRAME", "RECTANGLE", "COMPONENT"):
         fills = node.get("fills", [])
         if fills and fills[0].get("type") == "SOLID":
@@ -150,6 +153,11 @@ def main():
     print("  CONTRASTCHECK - Figma Accessibility Checker")
     print("  HCI 584 - Heeral Chumber")
     print("=" * 60)
+
+    if not FIGMA_TOKEN:
+        print("Missing FIGMA_TOKEN environment variable.")
+        print("Set it before running the program so the token is not stored in source code.")
+        return
 
     # fetch file
     figma_data = fetch_figma_file(FILE_KEY, FIGMA_TOKEN)
