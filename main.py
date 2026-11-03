@@ -246,13 +246,13 @@ def main() -> int:
     print("  CONTRASTCHECK - Figma Accessibility Checker")
     print("  HCI 584 - Heeral Chumber")
     print("=" * 60)
+    arguments = parse_arguments()
     token = os.environ.get("FIGMA_TOKEN", "").strip()
     if not token:
         print("Error: FIGMA_TOKEN is missing.")
         print("Create a Figma token and set it as an environment variable before running.")
         return 1
 
-    arguments = parse_arguments()
     try:
         file_key = parse_file_key(arguments.figma_file)
     except ValueError as error:
