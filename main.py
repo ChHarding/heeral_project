@@ -17,7 +17,11 @@ import requests
 
 
 DEFAULT_FILE_KEY = "Rznp5ERB6Jr2p4Xneg8r7g"
-WCAG_AA_THRESHOLD = 4.5
+WCAG_NORMAL_TEXT_THRESHOLD = 4.5
+WCAG_LARGE_TEXT_THRESHOLD = 3.0
+LARGE_TEXT_MINIMUM_PX = 24.0
+LARGE_BOLD_TEXT_MINIMUM_PX = 18.66
+BOLD_FONT_WEIGHT = 700
 BACKGROUND_NODE_TYPES = {"FRAME", "COMPONENT", "INSTANCE", "SECTION", "COMPONENT_SET"}
 
 
@@ -88,6 +92,39 @@ def get_text_color(node: dict) -> tuple[tuple[int, int, int] | None, str | None]
     return convert_figma_color_to_rgb(color), None
 
 
+def get_text_contrast_requirement(node: dict) -> tuple[float, str, float | None, int | None]:
+    """Return the WCAG AA threshold and size category for a Figma text node.
+
+    Figma reports font size in pixels. WCAG large text is at least 24 px at a
+    normal weight, or at least 18.66 px when the weight is 700 or greater.
+    Text with missing or unreadable style data uses the stricter normal-text
+    requirement.
+    """
+    style = node.get("style") or {}
+    font_size = style.get("fontSize")
+    font_weight = style.get("fontWeight")
+    try:
+        font_size = float(font_size) if font_size is not None else None
+    except (TypeError, ValueError):
+        font_size = None
+    try:
+        font_weight = int(font_weight) if font_weight is not None else None
+    except (TypeError, ValueError):
+        font_weight = None
+
+    is_large = font_size is not None and (
+        font_size >= LARGE_TEXT_MINIMUM_PX
+        or (
+            font_size >= LARGE_BOLD_TEXT_MINIMUM_PX
+            and font_weight is not None
+            and font_weight >= BOLD_FONT_WEIGHT
+        )
+    )
+    if is_large:
+        return WCAG_LARGE_TEXT_THRESHOLD, "large text", font_size, font_weight
+    return WCAG_NORMAL_TEXT_THRESHOLD, "normal text", font_size, font_weight
+
+
 def extract_text_nodes(
     node: dict,
     results: list[dict] | None = None,
@@ -111,6 +148,9 @@ def extract_text_nodes(
 
     if node.get("type") == "TEXT":
         foreground, foreground_issue = get_text_color(node)
+        threshold, text_size_category, font_size, font_weight = (
+            get_text_contrast_requirement(node)
+        )
         issue = foreground_issue or background_issue
         if issue is None and background is None:
             issue = "no supported solid ancestor background found"
@@ -122,6 +162,10 @@ def extract_text_nodes(
                 "bg_color": background,
                 "bg_source": background_source,
                 "review_reason": issue,
+                "contrast_threshold": threshold,
+                "text_size_category": text_size_category,
+                "font_size": font_size,
+                "font_weight": font_weight,
             }
         )
 
@@ -162,7 +206,14 @@ def build_report_lines(text_nodes: list[dict]) -> tuple[list[str], dict[str, int
     seen = set()
     for node in text_nodes:
         text = node["text"].strip() or "(empty text)"
-        key = (text, node["fg_color"], node["bg_color"], node["review_reason"])
+        key = (
+            text,
+            node["fg_color"],
+            node["bg_color"],
+            node["review_reason"],
+            node.get("font_size"),
+            node.get("font_weight"),
+        )
         if key in seen:
             continue
         seen.add(key)
@@ -174,10 +225,18 @@ def build_report_lines(text_nodes: list[dict]) -> tuple[list[str], dict[str, int
             continue
 
         ratio = calculate_contrast_ratio(node["fg_color"], node["bg_color"])
-        status = "PASS" if ratio >= WCAG_AA_THRESHOLD else "FAIL"
+        threshold = node.get("contrast_threshold", WCAG_NORMAL_TEXT_THRESHOLD)
+        category = node.get("text_size_category", "normal text")
+        status = "PASS" if ratio >= threshold else "FAIL"
         counts["passed" if status == "PASS" else "failed"] += 1
+        font_details = ""
+        if node.get("font_size") is not None:
+            font_details = f" | {node['font_size']:g}px"
+            if node.get("font_weight") is not None:
+                font_details += f" weight {node['font_weight']}"
         lines.append(
-            f"{status} | ratio {ratio:.2f} | {text} | node {node['node_id']} | "
+            f"{status} | ratio {ratio:.2f} (needs {threshold:g}:1, {category})"
+            f"{font_details} | {text} | node {node['node_id']} | "
             f"FG {node['fg_color']} | BG {node['bg_color']} ({node['bg_source']})"
         )
     return lines, counts
