@@ -12,7 +12,8 @@ The current application can:
 - accept a Figma file key or a full Figma design URL;
 - scan text inside nested pages, frames, components, and instances;
 - match text with its nearest opaque, solid ancestor background;
-- calculate WCAG contrast ratios and apply the 4.5:1 threshold;
+- calculate WCAG contrast ratios and apply the correct AA threshold: 4.5:1
+  for normal text or 3:1 for qualifying large text;
 - mark gradients, images, transparency, missing fills, and missing backgrounds
   as `MANUAL REVIEW` instead of producing an unreliable score;
 - remove duplicate results;
@@ -70,8 +71,11 @@ variable exists, followed by the project's original demonstration file key.
 
 Each supported text/background pair is marked `PASS` or `FAIL`. The report
 includes its ratio, text sample, Figma node ID, foreground color, background
-color, and background container. Results that cannot be calculated honestly
-are marked `MANUAL REVIEW` with a reason.
+color, background container, text-size category, and required threshold. Text
+at least 24 px is treated as large text. Bold text with a weight of at least
+700 is treated as large beginning at 18.66 px. Missing or invalid style data
+uses the stricter normal-text threshold. Results that cannot be calculated
+honestly are marked `MANUAL REVIEW` with a reason.
 
 `report.txt` is generated locally and ignored by Git because different users
 and Figma files produce different results.
@@ -90,8 +94,8 @@ or network connection.
 - ContrastCheck supports the nearest single, opaque, solid ancestor fill.
 - It does not determine whether a sibling shape overlaps the text.
 - Images, gradients, multiple fills, and transparency require manual review.
-- The 4.5:1 threshold is currently used for all text; automatic large-text
-  classification is not implemented.
+- The tool reads Figma's reported font size and weight but does not independently
+  verify whether a font's visual appearance matches its numeric weight.
 - Color-vision simulation and a graphical interface remain optional future
   features and are not part of the working application yet.
 
