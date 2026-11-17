@@ -74,8 +74,10 @@ includes its ratio, text sample, Figma node ID, foreground color, background
 color, background container, text-size category, and required threshold. Text
 at least 24 px is treated as large text. Bold text with a weight of at least
 700 is treated as large beginning at 18.66 px. Missing or invalid style data
-uses the stricter normal-text threshold. Results that cannot be calculated
-honestly are marked `MANUAL REVIEW` with a reason.
+uses the stricter normal-text threshold. Layers containing mixed character
+styles also use 4.5:1 because a smaller span may not qualify as large text.
+Results that cannot be calculated honestly are marked `MANUAL REVIEW` with a
+reason.
 
 `report.txt` is generated locally and ignored by Git because different users
 and Figma files produce different results.

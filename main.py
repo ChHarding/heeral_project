@@ -112,6 +112,16 @@ def get_text_contrast_requirement(node: dict) -> tuple[float, str, float | None,
     except (TypeError, ValueError):
         font_weight = None
 
+    character_overrides = node.get("characterStyleOverrides") or []
+    has_mixed_styles = any(str(override) != "0" for override in character_overrides)
+    if has_mixed_styles:
+        return (
+            WCAG_NORMAL_TEXT_THRESHOLD,
+            "mixed-style text (conservative)",
+            font_size,
+            font_weight,
+        )
+
     is_large = font_size is not None and (
         font_size >= LARGE_TEXT_MINIMUM_PX
         or (

@@ -58,6 +58,16 @@ class TextRequirementTests(unittest.TestCase):
         self.assertIsNone(font_size)
         self.assertIsNone(font_weight)
 
+    def test_mixed_style_text_uses_stricter_threshold(self):
+        threshold, category, _, _ = main.get_text_contrast_requirement(
+            {
+                "style": {"fontSize": 32, "fontWeight": 700},
+                "characterStyleOverrides": [0, 0, 1, 1],
+            }
+        )
+        self.assertEqual(threshold, 4.5)
+        self.assertEqual(category, "mixed-style text (conservative)")
+
 
 class ExtractionTests(unittest.TestCase):
     def test_text_uses_nearest_solid_ancestor_background(self):
